@@ -14,11 +14,26 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev
+      - name: Onbellek
+        uses: actions/cache@v4
+        with:
+          path: |
+            .buildozer
+            ~/.buildozer
+          key: buildozer-${{ hashFiles('buildozer.spec') }}
       - name: Buildozer
         run: |
+          set -o pipefail
           pip install --upgrade pip
           pip install buildozer "cython<3" virtualenv
-          buildozer -v android debug
+          buildozer -v android debug 2>&1 | tee build.log
+      - name: Hata ozeti
+        if: failure()
+        run: |
+          echo '## Hatanin son satirlari' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -n 50 build.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v4
         with:
           name: ajan-apk
