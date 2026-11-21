@@ -14,6 +14,7 @@ android.minapi = 24
 android.archs = arm64-v8a
 android.ndk = 25b
 p4a.branch = v2024.01.21
+p4a.hook = p4a_hook.py
 android.accept_sdk_license = True
 
 [buildozer]
