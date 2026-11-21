@@ -124,7 +124,7 @@ def run_code(src, secs=25):
     def t():
         try:
             with redirect_stdout(buf), redirect_stderr(buf):
-                exec(compile(src, "ajan_kod", "exec"), {"__name__": "__main__", "git": _git_tool, "sh": _sh_tool, "WORK": WORK, "PROJ": PROJ})
+                exec(compile(src, "ajan_kod", "exec"), {"__name__": "__main__", "git": _git_tool, "sh": _sh_tool, "WORK": WORK, "PROJ": PROJ, "mcp": _mcp_tool})
             res["ok"] = True
         except BaseException:
             res["ok"] = False
@@ -152,7 +152,7 @@ COUNT = [0]
 
 
 def agent(task, model, steps):
-    msgs = [{"role": "system", "content": SYS}, {"role": "user", "content": task}]
+    msgs = [{"role": "system", "content": SYS + mcp_desc()}, {"role": "user", "content": task}]
     reply = ""
     for i in range(5):
         reply = llm(msgs, model)
@@ -186,6 +186,7 @@ HIST = []
 def chat(d):
     model = d.get("model") or "qwen2.5:0.5b"
     steps = []
+    ENABLED[:] = _enabled_urls(d.get("mcp") or [])
     if d.get("agent"):
         return {"reply": agent(d["text"], model, steps), "steps": steps}
     HIST.append({"role": "user", "content": d["text"]})
@@ -197,13 +198,18 @@ def chat(d):
 def mcp_add(d):
     url = d.get("url", "").strip()
     c = cfg()
-    c["mcp"].append(url)
+    if url not in c["mcp"]:
+        c["mcp"].append(url)
     save_cfg(c)
     if "github.com" in url:
         z = zipfile.ZipFile(io.BytesIO(http(url.rstrip("/") + "/archive/HEAD.zip", timeout=120)))
         z.extractall(os.path.join(WORK, "mcp"))
         return {"msg": "GitHub deposu indirildi: work/mcp"}
-    return {"msg": "Sunucu kaydedildi"}
+    try:
+        t = get_mcp(url).tools()
+        return {"msg": "MCP baglandi, %d arac: %s" % (len(t), ", ".join(x["name"] for x in t[:8]))}
+    except Exception as e:
+        return {"msg": "Kaydedildi ama baglanamadi: %s (sadece Streamable HTTP desteklenir)" % e}
 
 
 def gh_api(method, url, tok, body=None):
@@ -258,6 +264,95 @@ def git(cmd):
         save_cfg(dict(cfg(), token=a[2]))
         return "Token kaydedildi"
     return "Desteklenmiyor: " + a[0]
+
+
+# ---------- MCP (Streamable HTTP, saf Python) ----------
+class MCP:
+    def __init__(self, url):
+        self.url, self.sid, self.n, self.ready, self.tl = url, None, 0, False, None
+
+    def rpc(self, method, params=None, notify=False):
+        self.n += 1
+        msg = {"jsonrpc": "2.0", "method": method}
+        if params is not None:
+            msg["params"] = params
+        if not notify:
+            msg["id"] = self.n
+        h = {"Content-Type": "application/json", "User-Agent": "ajan",
+             "Accept": "application/json, text/event-stream"}
+        if self.sid:
+            h["Mcp-Session-Id"] = self.sid
+        resp = urlopen(Request(self.url, json.dumps(msg).encode(), h), timeout=60)
+        self.sid = resp.headers.get("Mcp-Session-Id") or self.sid
+        raw = resp.read().decode("utf-8", "ignore")
+        if notify or not raw.strip():
+            return None
+        if not raw.lstrip().startswith("{"):
+            for line in raw.splitlines():
+                if line.startswith("data:"):
+                    try:
+                        if json.loads(line[5:]).get("id") == self.n:
+                            raw = line[5:]
+                            break
+                    except Exception:
+                        pass
+        d = json.loads(raw)
+        if "error" in d:
+            raise Exception(d["error"].get("message", "mcp hata"))
+        return d.get("result")
+
+    def start(self):
+        if not self.ready:
+            self.rpc("initialize", {"protocolVersion": "2025-03-26", "capabilities": {},
+                                    "clientInfo": {"name": "ajan", "version": "0.1"}})
+            self.rpc("notifications/initialized", {}, notify=True)
+            self.ready = True
+
+    def tools(self):
+        if self.tl is None:
+            self.start()
+            self.tl = self.rpc("tools/list", {}).get("tools", [])
+        return self.tl
+
+    def call(self, name, args):
+        self.start()
+        r = self.rpc("tools/call", {"name": name, "arguments": args})
+        return "\n".join(c.get("text", "") for c in r.get("content", []) if c.get("type") == "text") or json.dumps(r)
+
+
+MCPS, ENABLED = {}, []
+
+
+def get_mcp(url):
+    if url not in MCPS:
+        MCPS[url] = MCP(url)
+    return MCPS[url]
+
+
+def _enabled_urls(names):
+    return [u for u in cfg()["mcp"] if re.sub(r"^https?://", "", u)[:40] in names and "github.com" not in u]
+
+
+def _mcp_tool(tool, **args):
+    for u in ENABLED:
+        try:
+            if any(t["name"] == tool for t in get_mcp(u).tools()):
+                return get_mcp(u).call(tool, args)
+        except Exception as e:
+            return "mcp hata: %s" % e
+    return "arac bulunamadi: " + tool
+
+
+def mcp_desc():
+    lines = []
+    for u in ENABLED:
+        try:
+            for t in get_mcp(u).tools()[:12]:
+                props = ", ".join((t.get("inputSchema") or {}).get("properties", {}).keys())
+                lines.append("mcp('%s', %s) - %s" % (t["name"], props or "", (t.get("description") or "")[:90]))
+        except Exception:
+            pass
+    return ("\nMCP araclari (string dondurur, print ile yaz):\n" + "\n".join(lines)) if lines else ""
 
 
 def _git_tool(c):
@@ -432,3 +527,4 @@ class H(BaseHTTPRequestHandler):
 
 def serve():
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()
+    
