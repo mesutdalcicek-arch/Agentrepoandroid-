@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ajan</title>
+<style>
+:root{--bg:#faf9f5;--sf:#fff;--tx:#1f1e1d;--mu:#73726c;--bd:#e5e3da;--ac:#c96442;--ac2:#fff;--us:#efede4;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#262624;--sf:#30302e;--tx:#f5f4ee;--mu:#a09f97;--bd:#43423e;--ac:#d97757;--ac2:#1f1e1d;--us:#3a3936;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#262624;--sf:#30302e;--tx:#f5f4ee;--mu:#a09f97;--bd:#43423e;--ac:#d97757;--ac2:#1f1e1d;--us:#3a3936;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,-apple-system,Roboto,sans-serif;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd)}
+header h1{font-size:17px;margin:0;flex:1;font-weight:600}
+.chip{border:1px solid var(--bd);background:var(--sf);color:var(--tx);border-radius:999px;padding:5px 12px;font-size:13px}
+.chip.on{background:var(--ac);color:var(--ac2);border-color:var(--ac)}
+#msgs{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:12px}
+.m{max-width:88%;padding:10px 14px;border-radius:16px;white-space:pre-wrap;word-wrap:break-word}
+.u{align-self:flex-end;background:var(--us)}
+.a{align-self:flex-start;padding-left:0}
+.tool{align-self:flex-start;font:13px ui-monospace,Menlo,monospace;color:var(--mu);border:1px solid var(--bd);border-radius:10px;padding:6px 10px;background:var(--sf)}
+.empty{margin:auto;text-align:center;color:var(--mu)}
+.empty b{display:block;font-size:22px;color:var(--tx);margin-bottom:4px}
+#bar{padding:8px 12px 12px}
+.box{background:var(--sf);border:1px solid var(--bd);border-radius:24px;padding:8px;display:flex;align-items:flex-end;gap:6px}
+.box textarea{flex:1;border:0;outline:0;resize:none;background:transparent;color:var(--tx);font:inherit;max-height:120px;padding:8px 4px}
+.ib{width:38px;height:38px;border-radius:50%;border:0;background:transparent;color:var(--tx);font-size:24px;line-height:1}
+.ib.send{background:var(--ac);color:var(--ac2);font-size:18px}
+.ib.plus{border:1px solid var(--bd)}
+#shade{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;z-index:5}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--sf);border-radius:20px 20px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px));z-index:6;display:none;max-height:75%;overflow-y:auto}
+.sheet h2{font-size:15px;margin:0 0 8px;color:var(--mu);font-weight:600}
+.row{display:flex;align-items:center;gap:12px;padding:12px 6px;border-bottom:1px solid var(--bd);width:100%;background:none;border-left:0;border-right:0;border-top:0;color:var(--tx);font:inherit;text-align:left}
+.row:last-child{border-bottom:0}
+.row .ic{font-size:20px;width:28px;text-align:center}
+.row small{display:block;color:var(--mu);font-size:12px}
+.row .g{flex:1}
+.sw{width:42px;height:24px;border-radius:12px;background:var(--bd);position:relative;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:.15s}
+.sw.on{background:var(--ac)}.sw.on::after{left:21px}
+.add{display:flex;gap:8px;margin-top:10px}
+.add input{flex:1;border:1px solid var(--bd);background:var(--bg);color:var(--tx);border-radius:10px;padding:10px;font:inherit}
+.add button{border:0;background:var(--ac);color:var(--ac2);border-radius:10px;padding:0 14px;font:inherit}
+#term{top:0;border-radius:0;max-height:none;background:#000;color:#e6e6e6;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px);overflow:hidden}
+#term .tw{display:flex;flex-direction:column;height:100%}
+#term .th{display:flex;align-items:center;gap:10px;padding:8px 12px;color:#888;font:13px ui-monospace,Menlo,monospace}
+#term .th button{background:none;border:0;color:#e6e6e6;font-size:22px;padding:0 6px}
+#term_out{flex:1;margin:0;padding:4px 12px;overflow-y:auto;font:14px/1.35 ui-monospace,Menlo,"Courier New",monospace;white-space:pre-wrap;word-break:break-all}
+#term .pl{display:flex;align-items:center;padding:0 12px 6px;font:14px ui-monospace,Menlo,monospace}
+#term .pl span{color:#5f5}
+#term .pl input{flex:1;min-width:0;background:none;border:0;outline:0;color:#e6e6e6;font:inherit;padding:8px 6px}
+#term .xk{display:flex;background:#1a1a1a}
+#term .xk button{flex:1;background:none;border:0;color:#e6e6e6;padding:13px 0;font:13px ui-monospace,Menlo,monospace}
+</style>
+</head>
+<body>
+<header>
+  <h1>Ajan</h1>
+  <button class="chip" id="modeBtn">Sohbet</button>
+</header>
+<div id="msgs"><div class="empty" id="empty"><b>Ne yapalım?</b>Bir şey yaz ya da + ile araçları aç</div></div>
+<div id="bar">
+  <div class="box">
+    <button class="ib plus" id="plus" aria-label="Menü">+</button>
+    <textarea id="inp" rows="1" placeholder="Mesaj yaz"></textarea>
+    <button class="ib send" id="send" aria-label="Gönder">↑</button>
+  </div>
+</div>
+<div id="shade"></div>
+
+<div class="sheet" id="menu">
+  <button class="row" data-go="mcp"><span class="ic">🔌</span><span class="g">MCP sunucuları<small>GitHub, dosya, araçlar</small></span>›</button>
+  <button class="row" data-go="term"><span class="ic">⌨️</span><span class="g">Terminal<small>Python çıktısı ve komutlar</small></span>›</button>
+  <button class="row" id="agentRow"><span class="ic">🤖</span><span class="g">Ajan modu<small>Görevi ajana devret</small></span><span class="sw" id="agentSw"></span></button>
+  <button class="row" data-go="pkg"><span class="ic">📦</span><span class="g">Paketler<small>Kur, temizle</small></span>›</button>
+  <button class="row" data-go="mdl"><span class="ic">🧠</span><span class="g">Modeller<small>Yerel AI modeli çek ve seç</small></span>›</button>
+  <button class="row" data-go="gh"><span class="ic">🐙</span><span class="g">GitHub projeleri<small>İndir, çalıştır, aç</small></span>›</button>
+</div>
+
+<div class="sheet" id="mcp">
+  <h2>MCP sunucuları</h2>
+  <div id="mcpList"></div>
+  <div class="add"><input id="mcpUrl" placeholder="Sunucu adresi veya GitHub linki"><button id="mcpAdd">Ekle</button></div>
+</div>
+
+<div class="sheet" id="term">
+  <div class="tw">
+    <div class="th"><button id="termBack">←</button><span>Terminal</span></div>
+    <pre id="term_out">Hoş geldin.
+Python hazır.
+
+</pre>
+    <div class="pl"><span>~ $</span><input id="cmd" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go"></div>
+    <div class="xk">
+      <button data-k="">ESC</button><button data-k="">CTRL</button><button data-k="  ">TAB</button><button data-k="-">-</button><button data-k="/">/</button><button data-k="~">~</button><button data-k="|">|</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet" id="pkg">
+  <h2>Paketler</h2>
+  <div id="pkgList"></div>
+  <div class="add"><input id="pkgName" placeholder="paket adı"><button id="pkgAdd">Kur</button></div>
+  <div class="add"><button id="pkgClean" style="flex:1;padding:10px">Kullanılmayanları temizle</button></div>
+</div>
+
+<div class="sheet" id="gh">
+  <h2>GitHub projeleri</h2>
+  <div id="ghList"></div>
+  <div class="add"><input id="ghUrl" placeholder="https://github.com/kullanici/proje"><button id="ghGet">İndir</button></div>
+</div>
+
+<div id="fr" style="display:none;position:fixed;inset:0;z-index:9;background:var(--bg)">
+  <button class="chip" id="frX" style="position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);right:8px;z-index:10">✕ Kapat</button>
+  <iframe id="frm" style="width:100%;height:100%;border:0"></iframe>
+</div>
+
+<div class="sheet" id="mdl">
+  <h2>Yerel modeller</h2>
+  <div id="mdlList"></div>
+  <div class="add"><input id="mdlName" placeholder="başka model adı (ör. qwen2.5:1.5b)"><button id="mdlAdd">Ekle</button></div>
+  <h2 style="margin-top:14px">Ollama adresi</h2>
+  <div class="add"><input id="olUrl" placeholder="http://127.0.0.1:11434"><button id="olSave">Kaydet</button></div>
+</div>
+
+<script>
+var API="";
+var models=[{n:"qwen2.5:0.5b",s:"yaklaşık 400 MB, en hafif"}],model="qwen2.5:0.5b",have={};
+var $=function(i){return document.getElementById(i)};
+var agent=false, servers=[{n:"github",on:true},{n:"dosyalar",on:false}], pkgs=["requests"];
+function sheet(id){
+  ["menu","mcp","term","pkg","mdl","gh"].forEach(function(s){$(s).style.display=(s===id)?"block":"none"});
+  $("shade").style.display=id?"block":"none";
+}
+$("plus").onclick=function(){sheet("menu")};
+$("shade").onclick=function(){sheet(null)};
+document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){sheet(b.dataset.go);if(b.dataset.go==="gh")drawGh()}});
+$("agentRow").onclick=function(){agent=!agent;$("agentSw").classList.toggle("on",agent);$("modeBtn").textContent=agent?"Ajan":"Sohbet";$("modeBtn").classList.toggle("on",agent)};
+$("modeBtn").onclick=$("agentRow").onclick;
+
+function drawMcp(){
+  $("mcpList").innerHTML="";
+  servers.forEach(function(s,i){
+    var r=document.createElement("button");r.className="row";
+    r.innerHTML='<span class="ic">🔌</span><span class="g">'+s.n+'</span><span class="sw'+(s.on?' on':'')+'"></span>';
+    r.onclick=function(){s.on=!s.on;drawMcp()};
+    $("mcpList").appendChild(r);
+  });
+}
+$("mcpAdd").onclick=function(){
+  var v=$("mcpUrl").value.trim();if(!v)return;
+  servers.push({n:v.replace(/^https?:\/\//,"").slice(0,40),on:true});$("mcpUrl").value="";drawMcp();
+  call("/mcp/add",{url:v});
+};
+function drawPkg(){
+  $("pkgList").innerHTML=pkgs.map(function(p){return '<div class="row"><span class="ic">📦</span><span class="g">'+p+'</span></div>'}).join("");
+}
+$("pkgAdd").onclick=function(){
+  var v=$("pkgName").value.trim();if(!v)return;
+  pkgs.push(v);$("pkgName").value="";drawPkg();call("/pkg/install",{name:v});
+};
+$("pkgClean").onclick=function(){
+  call("/pkg/clean",{}).then(function(r){addTool(r&&r.msg?r.msg:"temizlik isteği gönderildi")});
+  sheet(null);
+};
+function tout(t){var o=$("term_out");o.textContent+=t;o.scrollTop=o.scrollHeight}
+$("termBack").onclick=function(){sheet(null)};
+document.querySelectorAll(".xk button").forEach(function(b){b.onclick=function(){$("cmd").value+=b.dataset.k;$("cmd").focus()}});
+$("cmd").addEventListener("keydown",function(e){
+  if(e.key!=="Enter")return;
+  var c=$("cmd").value.trim();$("cmd").value="";
+  tout("~ $ "+c+"\n");if(!c)return;
+  call("/term",{cmd:c}).then(function(r){tout((r&&r.out?r.out:"Python bağlı değil")+"\n")});
+});
+
+function call(path,body){
+  return fetch(API+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(r){return r.json()}).catch(function(){return null});
+}
+function add(cls,t){
+  $("empty")&&($("empty").style.display="none");
+  var d=document.createElement("div");d.className=cls==="tool"?"tool":"m "+cls;d.textContent=t;
+  $("msgs").appendChild(d);$("msgs").scrollTop=1e9;return d;
+}
+function addTool(t){add("tool",t)}
+$("send").onclick=function(){
+  var t=$("inp").value.trim();if(!t)return;
+  $("inp").value="";add("u",t);
+  var w=add("a","…");
+  var on=servers.filter(function(s){return s.on}).map(function(s){return s.n});
+  call("/chat",{text:t,agent:agent,mcp:on,model:model}).then(function(r){
+    if(r&&r.reply){w.textContent=r.reply;(r.steps||[]).forEach(addTool)}
+    else{w.textContent="Python çekirdeği bağlı değil. Bu bir ekran önizlemesi."+(agent?" (Ajan modu açık)":"")}
+  });
+};
+$("inp").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey&&window.innerWidth>700){e.preventDefault();$("send").click()}});
+function drawMdl(){
+  $("mdlList").innerHTML="";
+  models.forEach(function(m){
+    var r=document.createElement("div");r.className="row";
+    r.innerHTML='<span class="ic">'+(model===m.n?'✅':'🧠')+'</span><span class="g">'+m.n+'<small>'+m.s+'</small></span>';
+    var b=document.createElement("button");b.className="chip";b.textContent=have[m.n]?"Seç":"Çek";
+    b.onclick=function(){
+      if(have[m.n]){model=m.n;drawMdl();return}
+      b.textContent="İndiriliyor…";
+      call("/model/pull",{name:m.n}).then(function(x){
+        if(x&&x.ok){have[m.n]=true;drawMdl()}else{b.textContent="Python bağlı değil"}
+      });
+    };
+    r.appendChild(b);$("mdlList").appendChild(r);
+  });
+}
+$("mdlAdd").onclick=function(){var v=$("mdlName").value.trim();if(!v)return;models.push({n:v,s:"özel"});$("mdlName").value="";drawMdl()};
+$("olSave").onclick=function(){var v=$("olUrl").value.trim();if(v)call("/config",{ollama:v}).then(function(r){addTool(r&&r.msg?r.msg:"Python bağlı değil")});sheet(null)};
+function drawGh(){
+  call("/gh/list",{}).then(function(r){
+    var L=$("ghList");L.innerHTML="";
+    if(!r){L.textContent="Python bağlı değil";return}
+    r.projects.forEach(function(p){
+      var d=document.createElement("div");d.className="row";
+      d.innerHTML='<span class="ic">📁</span><span class="g">'+p.name+'<small>'+(p.entry||"başlangıç dosyası yok")+'</small></span>';
+      if(p.entry){
+        var b=document.createElement("button");b.className="chip";b.textContent=/\.html$/.test(p.entry)?"Aç":"Çalıştır";
+        b.onclick=function(){call("/gh/run",{name:p.name}).then(function(x){
+          sheet(null);
+          if(x&&x.open){$("frm").src=x.open;$("fr").style.display="block"}
+          else addTool(x&&x.out?x.out:"Python bağlı değil")})};
+        d.appendChild(b);
+      }
+      L.appendChild(d);
+    });
+  });
+}
+$("ghGet").onclick=function(){
+  var v=$("ghUrl").value.trim();if(!v)return;$("ghGet").textContent="…";
+  call("/gh/get",{url:v}).then(function(r){$("ghGet").textContent="İndir";$("ghUrl").value="";addTool(r&&r.msg?r.msg:"Python bağlı değil");drawGh()});
+};
+$("frX").onclick=function(){$("fr").style.display="none";$("frm").src="about:blank"};
+drawMcp();drawPkg();drawMdl();
+</script>
+</body>
+</html>
