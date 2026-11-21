@@ -30,10 +30,17 @@ jobs:
       - name: Hata ozeti
         if: failure()
         run: |
-          echo '## Hatanin son satirlari' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -n 50 build.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          sed 's/\x1b\[[0-9;]*m//g' build.log > clean.log
+          {
+            echo '## Gradle hatasi'
+            echo '```'
+            grep -n -A 30 -i "What went wrong" clean.log | head -80 | cut -c1-300
+            echo '```'
+            echo '## Hata satirlari'
+            echo '```'
+            grep -n -E "FAILURE|error:|Error:|Exception|Could not|not found" clean.log | head -30 | cut -c1-300
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
       - uses: actions/upload-artifact@v4
         with:
           name: ajan-apk
