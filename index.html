@@ -123,6 +123,9 @@ Python hazır.
   <div class="add"><input id="mdlName" placeholder="başka model adı (ör. qwen2.5:1.5b)"><button id="mdlAdd">Ekle</button></div>
   <h2 style="margin-top:14px">Ollama adresi</h2>
   <div class="add"><input id="olUrl" placeholder="http://127.0.0.1:11434"><button id="olSave">Kaydet</button></div>
+  <h2 style="margin-top:14px">Ücretsiz API</h2>
+  <div class="add"><input id="apiKey" type="password" placeholder="API anahtarı" autocomplete="off"><button id="apiSave">Kullan</button></div>
+  <div class="add"><button id="engLocal" style="flex:1;padding:10px">Yerel Ollama'ya dön</button></div>
 </div>
 
 <script>
@@ -238,6 +241,11 @@ $("ghGet").onclick=function(){
   call("/gh/get",{url:v}).then(function(r){$("ghGet").textContent="İndir";$("ghUrl").value="";addTool(r&&r.msg?r.msg:"Python bağlı değil");drawGh()});
 };
 $("frX").onclick=function(){$("fr").style.display="none";$("frm").src="about:blank"};
+$("apiSave").onclick=function(){
+  var k=$("apiKey").value.trim(),b={engine:"api"};if(k)b.api_key=k;$("apiKey").value="";
+  call("/config",b).then(function(){return call("/api/models",{})}).then(function(r){addTool(r&&r.msg?r.msg:"Python bağlı değil");sheet(null)});
+};
+$("engLocal").onclick=function(){call("/config",{engine:"ollama"}).then(function(){addTool("Yerel Ollama kullanılıyor");sheet(null)})};
 drawMcp();drawPkg();drawMdl();
 </script>
 </body>
