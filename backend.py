@@ -26,7 +26,8 @@ sys.path.insert(0, LIBS)
 
 
 def cfg():
-    c = {"ollama": "http://127.0.0.1:11434", "mcp": []}
+    c = {"ollama": "http://127.0.0.1:11434", "mcp": [], "engine": "ollama",
+         "api_base": "https://coarena.ai/api/v1", "api_key": "", "api_model": ""}
     try:
         c.update(json.load(open(CFG)))
     except Exception:
@@ -105,7 +106,104 @@ def clean():
 
 
 # ---------- model ----------
+# ---------- ucretsiz API motoru (OpenAI uyumlu) ----------
+def http_h(url, body=None, key="", timeout=120):
+    h = {"Content-Type": "application/json", "User-Agent": "ajan/0.1"}
+    if key:
+        h["Authorization"] = "Bearer " + key
+    data = json.dumps(body).encode() if body is not None else None
+    return urlopen(Request(url, data, h), timeout=timeout).read()
+
+
+def _num(x):
+    try:
+        return float(x)
+    except Exception:
+        return None
+
+
+def is_free(m):
+    mid = str(m.get("id", ""))
+    if mid.endswith(":free"):
+        return True
+    if m.get("free") is True or str(m.get("tier", "")).lower() == "free":
+        return True
+    p = m.get("pricing")
+    if isinstance(p, dict) and p:
+        vals = [_num(v) for v in p.values() if _num(v) is not None]
+        return bool(vals) and all(v == 0 for v in vals)
+    return False
+
+
+def has_price_info(m):
+    return "free" in m or "tier" in m or isinstance(m.get("pricing"), dict)
+
+
+SKIP = ("embed", "whisper", "tts", "image", "guard", "safety", "moderation", "rerank")
+FREE = {"t": 0, "ids": [], "why": ""}
+
+
+def api_free_ids(force=False):
+    import time
+    if not force and FREE["ids"] and time.time() - FREE["t"] < 600:
+        return FREE["ids"]
+    c = cfg()
+    data = json.loads(http_h(c["api_base"].rstrip("/") + "/models", None, c["api_key"], 30))
+    models = [m for m in data.get("data", data if isinstance(data, list) else [])
+              if isinstance(m, dict) and not any(s in str(m.get("id", "")).lower() for s in SKIP)]
+    free = [m for m in models if is_free(m)]
+    if free:
+        why = "%d ucretsiz model (toplam %d)" % (len(free), len(models))
+    elif models and not any(has_price_info(m) for m in models):
+        free, why = models, "fiyat bilgisi yok, hepsi ucretsiz sayildi (%d model)" % len(models)
+    else:
+        why = "ucretsiz model bulunamadi"
+    FREE.update(t=time.time(), ids=[m["id"] for m in free], why=why)
+    return FREE["ids"]
+
+
+def api_chat(msgs):
+    c = cfg()
+    ids = list(api_free_ids())
+    if c.get("api_model") in ids:
+        ids.remove(c["api_model"])
+        ids.insert(0, c["api_model"])
+    if not ids:
+        raise Exception("ucretsiz model yok (anahtar dogru mu?)")
+    last = ""
+    for mid in ids[:5]:
+        try:
+            r = json.loads(http_h(c["api_base"].rstrip("/") + "/chat/completions",
+                                  {"model": mid, "messages": msgs}, c["api_key"], 120))
+            t = r["choices"][0]["message"]["content"]
+            return re.sub(r"<think>.*?</think>", "", t, flags=re.S).strip()
+        except Exception as e:
+            last = "%s: %s" % (mid, e)
+    raise Exception("API cevap vermedi, son hata: " + last)
+
+
+def cfg_set(d):
+    ok = {k: d[k] for k in ("ollama", "engine", "api_base", "api_key", "api_model") if k in d}
+    save_cfg(dict(cfg(), **ok))
+    FREE["t"] = 0
+    return {"msg": "Kaydedildi" + (" (motor: %s)" % ok["engine"] if "engine" in ok else "")}
+
+
+def api_models_route(d):
+    try:
+        ids = api_free_ids(True)
+        return {"msg": "%s: %s" % (FREE["why"], ", ".join(ids[:6]))}
+    except Exception as e:
+        return {"msg": "Model listesi alinamadi: %s" % e}
+
+
 def llm(msgs, model):
+    if cfg().get("engine") == "api":
+        return api_chat(msgs)
+    return ollama_chat(msgs, model)
+
+
+def ollama_chat(msgs, model):
     r = json.loads(http(cfg()["ollama"].rstrip("/") + "/api/chat",
                         {"model": model, "messages": msgs, "stream": False}))
     t = r["message"]["content"]
@@ -491,7 +589,8 @@ ROUTES = {
     "/pkg/install": lambda d: {"msg": "kuruldu" if install(d["name"]) else "wheel yok"},
     "/pkg/clean": lambda d: {"msg": clean()},
     "/model/pull": lambda d: {"ok": pull(d["name"])},
-    "/config": lambda d: (save_cfg(dict(cfg(), ollama=d["ollama"])) or {"msg": "Kaydedildi"}),
+    "/config": cfg_set,
+    "/api/models": api_models_route,
 }
 
 
@@ -527,4 +626,3 @@ class H(BaseHTTPRequestHandler):
 
 def serve():
     ThreadingHTTPServer(("127.0.0.1", PORT), H).serve_forever()
-    
